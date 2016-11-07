@@ -24,7 +24,9 @@ namespace TryDapper.Controllers
         [HttpGet("{id}")]
         public string Get(int id)
         {
-            return "value";
+            var customerEntities = new CustomerDb();
+            return customerEntities.GetDog().Name;
+
         }
 
         // POST api/values
@@ -43,6 +45,8 @@ namespace TryDapper.Controllers
         [HttpDelete("{id}")]
         public void Delete(int id)
         {
+            var customerEntities = new CustomerDb();
+            customerEntities.createTableAnddrop();
         }
     }
 
@@ -66,6 +70,16 @@ namespace TryDapper.Controllers
         
     }
 
+    public class Dog
+    {
+        public int? Age { get; set; }
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+        public float? Weight { get; set; }
+
+        public int IgnoredProperty { get { return 1; } }
+    }
+
     public class CustomerDb
     {
         public string connectionstring =
@@ -84,6 +98,41 @@ namespace TryDapper.Controllers
 
               //  var data = sqlConnection.Query<Post, User, Post>("", (post, user) => { post.Owner = user; return post; });
               //  var post = data.First();
+            }
+        }
+
+        public Dog GetDog()
+        {
+            using (
+                System.Data.SqlClient.SqlConnection sqlConnection =
+                    new System.Data.SqlClient.SqlConnection(connectionstring))
+            {
+                var dog = sqlConnection.Query<Dog>("select name=@Name,Age = @Age, Id = @Id",
+                    new
+                    
+                    {
+                        
+                        Name= "hello",
+                        Age = (int?) null,
+                        Id = Guid.NewGuid()
+                    });
+                return dog.SingleOrDefault();
+            }
+        }
+
+
+        public void createTableAnddrop()
+        {
+            using (
+                System.Data.SqlClient.SqlConnection sqlConnection =
+                    new System.Data.SqlClient.SqlConnection(connectionstring))
+            {
+
+                sqlConnection.Execute(
+                    "create table #t(i int);insert into #t(i) select @a union all select @b ;drop table #a ",
+                    new {a = "111", b = "222"});
+
+
             }
         }
     }

@@ -12,13 +12,13 @@ namespace TryDapper.Controllers
     {
         // GET api/values
         [HttpGet]
-        public IEnumerable<string> Get()
-        {
+        //public IEnumerable<string> Get()
+        //{
          
-            var customerEntities = new CustomerDb();
-            var customers = customerEntities.GetCustomers();
-            return customers.Select(c => c.Address).ToList();
-        }
+        //    var customerEntities = new CustomerDb();
+        //    var customers = customerEntities.GetCustomers();
+        //    return customers.Select(c => c.Address).ToList();
+        //}
 
     // GET api/values/5
         [HttpGet("{id}")]
@@ -48,6 +48,14 @@ namespace TryDapper.Controllers
             var customerEntities = new CustomerDb();
             customerEntities.createTableAnddrop();
         }
+
+        [HttpGet]
+        [Route("left")]
+        public void Left()
+        {
+            var customerEntities = new CustomerDb();
+            var c = customerEntities.LeftJoin();
+        }
     }
 
 
@@ -58,7 +66,17 @@ namespace TryDapper.Controllers
         public string LastName { get; set; }
         public string Address { get; set; }
         public string City { get; set; }
+        public List<CustomerTitle> Titles { get; set; }
     }
+
+
+    public class CustomerTitle
+    {
+        public int Id { get; set; }
+        public string Title { get; set; }
+        public int CustomerId { get; set; }
+    }
+
 
     public class Post
     {
@@ -129,10 +147,49 @@ namespace TryDapper.Controllers
             {
 
                 sqlConnection.Execute(
-                    "create table #t(i int);insert into #t(i) select @a union all select @b ;drop table #a ",
+                    "create table #t(i int);insert into #t select @a union all select @b ;drop table #t ",
                     new {a = "111", b = "222"});
 
 
+            }
+        }
+
+        public IList<Customer> LeftJoin()
+        {
+            using (
+                System.Data.SqlClient.SqlConnection sqlConnection =
+                    new System.Data.SqlClient.SqlConnection(connectionstring))
+            {
+
+                var lookUp = new Dictionary<int, Customer>();
+                sqlConnection.Query<Customer, CustomerTitle, Customer>(
+                    "select c.CustomerId, c.FirstName, c.LastName, c.Address, c.City, " +
+                    "ct.Id,ct.Title,ct.CustomerId from Customer c left join CustomerTitle ct on c.CustomerId = ct.CustomerId ",
+                    (c, ct) =>
+                    {
+
+                        Customer h = null;
+                        if (!lookUp.TryGetValue(c.CustomerId, out h))
+                        {
+                            h = c;
+                            lookUp.Add(c.CustomerId, h);
+                        }
+
+                        if (h.Titles == null)
+                        {
+                            h.Titles = new List<CustomerTitle>();
+                        }
+                        if (ct != null)
+                        {
+                            h.Titles.Add(ct);
+                        }
+                        return h;
+                    }
+                    ).ToList();
+
+
+                var customers = lookUp.Values.ToList();
+                return customers;
             }
         }
     }
